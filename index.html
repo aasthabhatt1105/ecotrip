@@ -1,330 +1,64 @@
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoTrip Intelligence | Europe Earth Observation App</title>
-    <meta name="description" content="A revolutionary tourism decision app powered by Copernicus satellite data for Europe.">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
-</head>
+    <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>EcoTrip Intelligence | Europe Earth Observation App</title>
+        <meta name="description" content="EcoTrip Intelligence: A Copernicus-powered Europe Earth Observation travel assistant. Explore sustainable destinations with NDVI scores, weather hints, and AI itineraries.">
+        <link rel="manifest" href="manifest.json">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <link rel="stylesheet" href="styles.css">
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    </head>
 <body>
-
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logo">
-                <i data-lucide="globe-2" class="text-emerald"></i>
-                <span>EcoTrip Europe</span>
-            </div>
-            <div class="nav-links">
-                <a href="#features">Features</a>
-                <div id="auth-unlogged">
-                    <button class="btn btn-primary nav-cta" id="nav-btn-login">Log In / Sign Up</button>
-                </div>
-                <div id="auth-logged" class="hidden" style="display:flex; align-items:center; gap:12px;">
-                    <span id="user-display-name" style="font-weight:600; font-size:0.9rem;"></span>
-                    <a href="#" id="nav-btn-my-photos" style="font-size:0.9rem;">My Photos</a>
-                    <button class="btn btn-secondary nav-cta" id="nav-btn-logout" style="padding:4px 12px; font-size:0.8rem; border-radius:16px; background:white; color:var(--text-dark);">Log Out</button>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Hero & Search Section -->
-    <header class="hero">
-        <div class="hero-overlay"></div>
-        <div class="container hero-content text-center">
-            <h1>Smarter travel decisions powered by <span class="text-emerald">Copernicus</span> satellite data.</h1>
-            <p class="subtitle" style="margin: 0 auto 32px auto;">EcoTrip uses European Earth observation telemetry to recommend exactly where to go, when to visit, and what activities suit the current climate perfectly.</p>
-            
-            <div class="search-container">
-                <label for="euro-search" class="search-label">Where in Europe are you planning to go?</label>
-                <div class="search-box">
-                    <i data-lucide="search" class="search-icon"></i>
-                    <input type="text" id="euro-search" placeholder="Try 'Alps', 'Amalfi Coast', 'Pyrenees'..." autocomplete="off">
-                </div>
-                <p id="search-error" class="hidden" style="color: #fca5a5; font-size: 0.85rem; padding-top: 8px; margin: 0; text-align: left;"></p>
-                <!-- Autocomplete Suggestions -->
-                <ul class="autocomplete-list hidden" id="autocomplete-list"></ul>
-            </div>
-        </div>
-    </header>
-
-    <!-- Interactive Dashboard -->
-    <section id="dashboard" class="section bg-earth" style="padding: 48px 0;">
-        <div class="container">
-            <div class="dashboard-grid">
-                
-                <!-- Left: Maps & Images -->
-                <div class="dash-left">
-                    <div class="tabs">
-                        <button class="tab-btn active" data-tab="map-view">Copernicus Map</button>
-                        <button class="tab-btn" data-tab="images-view">See Recent Images</button>
-                        <span class="badge float-right" title="Satellite data source: Copernicus (EU)">
-                            <i data-lucide="satellite"></i> EU Copernicus
-                        </span>
-                    </div>
-
-                    <!-- Leaflet Map Container -->
-                    <div class="tab-content active" id="map-view">
-                        <div class="map-controls-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h3 style="margin:0; font-size:1.1rem; color:var(--deep-blue);">Copernicus Map</h3>
-                            <div class="date-picker">
-                                <label for="sat-date" style="font-size:0.85rem; font-weight:600; margin-right:8px;">Observe Date:</label>
-                                <input type="date" id="sat-date" style="padding:4px 8px; border-radius:4px; border:1px solid #cbd5e1; font-family:inherit; color:var(--deep-blue);">
-                            </div>
-                        </div>
-                        <div style="position: relative;">
-                            <div id="preview-map" class="map-window"></div>
-                            
-                            <!-- Custom Map Legends (Dynamic display controlled by JS) -->
-                            <div id="legend-ndvi" class="map-legend hidden">
-                                <strong>NDVI Greenness</strong>
-                                <div class="gradient-ndvi"></div>
-                                <div class="legend-labels"><span>Low</span><span>Moderate</span><span>High</span></div>
-                            </div>
-                            <div id="legend-carbon" class="map-legend hidden">
-                                <strong>Carbon / Emissions Proxy</strong>
-                                <div class="gradient-carbon"></div>
-                                <div class="legend-labels"><span>Low (Forests)</span><span>Moderate</span><span>High (Cities)</span></div>
-                            </div>
-                        </div>
-                        <p class="map-caption">NDVI data source: Copernicus Land Monitoring Service. Carbon-related map based on Copernicus Air Quality and Emissions data.</p>
-                    </div>
-
-                    <!-- Recent Satellite Images Container -->
-                    <div class="tab-content" id="images-view">
-                        <div class="grid grid-2 imagery-grid" id="imagery-grid">
-                            <div class="sat-img"><img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&q=80" alt="Sat"></div>
-                            <div class="sat-img"><img src="https://images.unsplash.com/photo-1549880338-65ddcdfd017b?w=600&q=80" alt="Sat"></div>
-                            <div class="sat-img"><img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80" alt="Sat"></div>
-                            <div class="sat-img"><img src="https://images.unsplash.com/photo-1502691866326-d621b14ce63f?w=600&q=80" alt="Sat"></div>
-                        </div>
-                        <p class="map-caption">Recent satellite-style view powered by Copernicus-based data.</p>
-                    </div>
-                </div>
-
-                <!-- Right: Travel Assistant Panel -->
-                <div class="dash-right">
-                    <div class="assistant-card" id="assistant-card">
-                        <!-- Empty State -->
-                        <div class="empty-state text-center" id="assistant-empty">
-                            <i data-lucide="compass" style="width:48px; height:48px; color:var(--earth-muted); margin-bottom:16px;"></i>
-                            <h3>Travel Assistant Ready</h3>
-                            <p>Search for a European destination above to generate satellite intelligence.</p>
-                        </div>
-                        
-                        <!-- Filled State -->
-                        <div class="filled-state hidden" id="assistant-filled">
-                            <h2 id="card-dest-name" style="margin-bottom:12px;">Destination Name</h2>
-                            
-                            <!-- Safety Alert Banner -->
-                            <div id="safety-alert-banner" class="hidden" style="background:#fef2f2; border:1px solid #fca5a5; padding:12px; border-radius:8px; margin-bottom:20px; color:#ef4444; display:flex; align-items:flex-start; gap:10px;">
-                                <i data-lucide="alert-triangle" style="width:20px; height:20px; flex-shrink:0;"></i>
-                                <span id="safety-alert-text" style="font-weight:600; font-size:0.95rem; line-height:1.4;">High Fire Danger detected in area.</span>
-                            </div>
-
-                            <div class="score-row">
-                                <div class="score-circle">
-                                    <span id="card-score">--</span>
-                                </div>
-                                <div>
-                                    <h4 style="margin:0;">Tourism Score</h4>
-                                    <span style="font-size:0.85rem; color:var(--earth-muted);">Derived from Copernicus Telemetry</span>
-                                </div>
-                            </div>
-                            
-                            <hr class="divider">
-                            
-                            <div class="info-chunk">
-                                <i data-lucide="check-circle" class="text-emerald"></i>
-                                <div>
-                                    <strong>Best Activity:</strong>
-                                    <p id="card-activity" class="highlight-text">--</p>
-                                </div>
-                            </div>
-                            
-                            <div class="info-chunk">
-                                <i data-lucide="sun"></i>
-                                <div>
-                                    <strong>Visibility Status:</strong>
-                                    <p id="card-visibility">--</p>
-                                </div>
-                            </div>
-                            
-                            <hr class="divider">
-                            <div class="weather-panel" style="background: rgba(241,245,249,0.5); padding: 16px; border-radius: var(--radius-md); margin-bottom: 16px; border: 1px solid #e2e8f0;">
-                                <h4 style="font-size: 0.95rem; color: var(--text-dark); margin-bottom: 8px; display:flex; align-items:center; gap:6px;"><i data-lucide="cloud-sun" style="width:16px; height:16px; color:var(--blue);"></i> Copernicus-Backed Daily Forecast</h4>
-                                <p id="weather-hint-text" style="font-weight: 600; color: var(--deep-blue); margin-bottom: 12px; font-size: 0.9rem;">--</p>
-                                <div id="weather-forecast-grid" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom:4px;">
-                                    <!-- Injected via JS -->
-                                </div>
-                            </div>
-                            
-                            <div class="info-chunk">
-                                <i data-lucide="leaf" class="text-emerald"></i>
-                                <div>
-                                    <strong>Scenic Greenness (NDVI):</strong>
-                                    <p id="card-ndvi" style="font-weight:600; color:var(--emerald-dark)">--</p>
-                                </div>
-                            </div>
-                            
-                            <div class="info-chunk">
-                                <i data-lucide="cloud-fog" class="text-deep-blue"></i>
-                                <div>
-                                    <strong>Carbon-conscious:</strong>
-                                    <p id="card-carbon" style="font-weight:600; color:var(--blue)">--</p>
-                                </div>
-                            </div>
-
-                            <div class="info-chunk">
-                                <i data-lucide="shield-alert" class="text-danger"></i>
-                                <div>
-                                    <strong>Safety Indicators:</strong>
-                                    <ul id="card-safety" class="safety-list" style="padding-left:0; list-style:none; margin-top:4px;">
-                                        <!-- Safety items generated via JS -->
-                                    </ul>
-                                </div>
-                            </div>
-                            
-                            <div class="summary-box">
-                                <p id="card-explanation" style="font-style: italic;">--</p>
-                                <div class="time-hint">
-                                    <i data-lucide="calendar"></i> <strong>Best time to visit:</strong> <span id="card-time">--</span>
-                                </div>
-                            </div>
-                            
-                            <hr class="divider">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                <h3 style="font-size:1.2rem;">Community Photos</h3>
-                                <button class="btn btn-primary" id="btn-upload-photo" style="padding:6px 16px; font-size:0.8rem; border-radius:16px;">
-                                    <i data-lucide="camera" style="width:14px; height:14px; margin-right:6px;"></i> Add your photo
-                                </button>
-                            </div>
-                            <p style="font-size:0.8rem; color:var(--earth-muted); margin-bottom:16px;">Like Google Maps, you can upload photos of places you visit and share your view with others.</p>
-                            <div class="community-gallery grid grid-2" id="community-gallery">
-                                <!-- Photos injected here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
-        </div>
-    </section>
-
-    <!-- Legacy Features Grid -->
-    <section id="features" class="section">
-        <div class="container text-center">
-            <h2 class="section-title">Is this place good to visit right now?</h2>
-            <div class="grid grid-3" style="margin-top: 48px;">
-                <div class="card feature-card"><i data-lucide="check-circle" class="text-emerald"></i><h3>Destination Suitability</h3><p>A simple 0–100 score quantifying exactly how perfect a destination is.</p></div>
-                <div class="card feature-card"><i data-lucide="alert-triangle" class="text-danger"></i><h3>Safety Alerts</h3><p>Avoid risky conditions with proactive warnings for fire risks, extreme heat, or floods.</p></div>
-                <div class="card feature-card"><i data-lucide="camera" class="text-blue"></i><h3>Scenic Quality</h3><p>We analyze NDVI greenness indices and visibility to guarantee stunning views.</p></div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container text-center">
-            <div class="logo justify-center">
-                <i data-lucide="globe-2" class="text-emerald"></i>
-                <span>EcoTrip Intelligence</span>
-            </div>
-            <p style="margin-top:16px; color:var(--earth-muted);">Powered by Copernicus satellite data for Europe.</p>
-            <div class="eu-badge" style="display:inline-flex; align-items:center; gap:8px; margin-top:12px; padding:6px 12px; background:rgba(0,0,0,0.05); border-radius:4px; font-size:0.8rem; font-weight:600;">
-                <i data-lucide="cpu" class="text-blue"></i> EU Space Programme
-            </div>
-            <div class="copyright" style="margin-top:24px;">
-                &copy; 2026 EcoTrip Intelligence. | <a href="#" id="footer-privacy-link" style="color:var(--emerald);">Privacy Policy</a>
-                <br>
-                <span class="creator">Created by <span style="color: var(--emerald);">Aastha Bhatt</span></span>
-            </div>
-        </div>
-    <!-- Upload Modal -->
-    <div id="upload-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="font-size:1.5rem; margin:0;">Upload Image of This Place</h3>
-                <button id="close-modal" class="btn-close"><i data-lucide="x"></i></button>
-            </div>
-            <div class="modal-body">
-                <p style="font-size:0.9rem; color:var(--earth-muted); margin-bottom:16px;">Help others by sharing a photo you took at <strong id="upload-dest-name" style="color:var(--deep-blue);">this destination</strong>.</p>
-                
-                <input type="file" id="photo-file" accept="image/png, image/jpeg" style="margin-bottom:16px; width:100%; font-size:0.9rem;">
-                
-                <label for="photo-title" style="display:block; font-size:0.9rem; font-weight:600; margin-bottom:4px;">Title</label>
-                <input type="text" id="photo-title" placeholder="e.g., Sunset from the mountain trail" style="width:100%; margin-bottom:16px; padding:12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit;">
-                
-                <label for="photo-desc" style="display:block; font-size:0.9rem; font-weight:600; margin-bottom:4px;">Description (Optional)</label>
-                <textarea id="photo-desc" placeholder="Share your experience..." style="width:100%; height:80px; margin-bottom:24px; padding:12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit; resize:vertical;"></textarea>
-                
-                <button id="submit-upload" class="btn btn-primary" style="width:100%; justify-content:center; padding:16px; font-size:1rem;">Confirm Upload</button>
-                <p style="text-align:center; font-size:0.85rem; color:var(--earth-muted); margin-top:16px;">
-                    <i data-lucide="shield-check" style="width:14px; height:14px; color:var(--emerald); vertical-align:middle;"></i>
-                    Your photo is stored securely in Firebase. It will be visible in the public gallery for this place.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Auth Modal -->
-    <div id="auth-modal" class="modal hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h3 style="font-size:1.5rem; margin:0;" id="auth-modal-title">Sign In</h3>
-                <button id="close-auth-modal" class="btn-close"><i data-lucide="x"></i></button>
-            </div>
-            <div class="modal-body">
-                <button id="btn-google-login" class="btn btn-secondary" style="width:100%; justify-content:center; margin-bottom:16px; border:1px solid #cbd5e1; background:white; color:var(--text-dark);">
-                    <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="margin-right:8px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-                    Continue with Google
-                </button>
-                <div style="text-align:center; margin:16px 0; color:var(--earth-muted); font-size:0.85rem;">OR</div>
-                <input type="email" id="auth-email" placeholder="Email Address" style="width:100%; margin-bottom:12px; padding:12px; border-radius:8px; border:1px solid #cbd5e1;">
-                <input type="password" id="auth-password" placeholder="Password" style="width:100%; margin-bottom:16px; padding:12px; border-radius:8px; border:1px solid #cbd5e1;">
-                <p id="auth-error" style="color:#ef4444; font-size:0.85rem; margin-bottom:12px;" class="hidden"></p>
-                <button id="btn-email-auth" class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;">Sign In</button>
-                <p style="text-align:center; font-size:0.85rem; margin-top:16px;">
-                    <a href="#" id="auth-toggle-mode" style="color:var(--deep-blue); font-weight:600;">Need an account? Sign Up</a>
-                </p>
-                <div style="text-align:center; margin-top:16px; font-size:0.75rem; color:var(--earth-muted);">
-                    By signing in, you agree to our <a href="#" id="auth-privacy-link-inline" style="color:var(--emerald);">Privacy Policy</a>. Data is securely stored using Google Firebase.
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Privacy Policy Modal -->
-    <div id="privacy-modal" class="modal hidden">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h3 style="font-size:1.5rem; margin:0;" style="display:flex; align-items:center; gap:8px;">
-                    <i data-lucide="shield" class="text-emerald"></i> Privacy & Safety
-                </h3>
-                <button id="close-privacy-modal" class="btn-close"><i data-lucide="x"></i></button>
-            </div>
-            <div class="modal-body" style="font-size: 0.95rem; line-height:1.6; color:var(--deep-blue);">
-                <p style="margin-bottom:12px"><strong>EcoTrip Intelligence</strong> uses Firebase (provided by Google) to:</p>
-                <ul style="margin-left: 20px; margin-bottom:16px; list-style-type:disc;">
-                    <li>Manage user accounts securely</li>
-                    <li>Store user‑uploaded photos in cloud buckets</li>
-                    <li>Keep your data safe and fast</li>
-                </ul>
-                <p style="margin-bottom:12px"><i data-lucide="lock" style="width:14px; height:14px; color:var(--emerald); display:inline-block; vertical-align:middle;"></i> Data is stored in encrypted form and protected by <strong>Google Cloud’s security infrastructure</strong>.</p>
-                <p style="margin-bottom:12px">We do not sell your personal data or uploaded photos to third parties.</p>
-                <p style="padding:12px; background:rgba(0,0,0,0.05); border-radius:8px; font-size:0.85rem; color:var(--earth-muted);">
-                    <strong>Your Rights:</strong> You can request to delete your account and all associated photos. To do this, simply locate the delete option in your "My Photos" dashboard or contact us directly.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module" src="main.js"></script>
+        <nav class="nav-glass" id="main-nav">
+                    <div class="container nav-wrap">
+                                    <a href="/" class="app-logo"><h1>EcoTrip <span>Intelligence</span></h1></a>a>
+                                <div class="nav-links">
+                                                <button class="nav-item active" data-view="home">Home</button>button>
+                                                <button class="nav-item" data-view="map">Map</button>button>
+                                                <button class="nav-item" data-view="itinerary" id="nav-itinerary">Plan Trip</button>button>
+                                                <button class="nav-item" data-view="impact">My Impact</button>button>
+                                </div>div>
+                                <div id="auth-container"><button id="login-btn">Sign In</button>button></div>div>
+                    </div>div>
+        </nav>nav>
+    <main class="app-container">
+            <section id="view-home" class="view-panel active">
+                        <div id="main-map" style="height:100vh"></div>div>
+                        <div class="map-overlay top">
+                                        <input type="text" id="destination-input" placeholder="Search Europe...">
+                                        <button id="search-submit">Discover</button>button>
+                        </div>div>
+            </section>section>
+            <section id="view-itinerary" class="view-panel">
+                        <div class="container">
+                                        <h1>Smart Itinerary Planner</h1>
+                                        <div class="itinerary-config">
+                                                            <input type="text" id="itinerary-dest" readonly>
+                                                            <button id="generate-itinerary-btn">Generate Plan</button>button>
+                                        </div>div>
+                                        <div id="itinerary-output"></div>div>
+                        </div>div>
+            </section>section>
+    </main>main>
+    <button id="ai-toggle" class="fab">AI Assistant</button>button>
+    <div id="ai-panel" class="hidden">
+            <div id="ai-chat-log"></div>div>
+            <input type="text" id="ai-input"><button id="ai-send">Send</button>button>
+    </div>div>
+    <script type="module" src="js/firebase.js"></script>
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/weather.js"></script>
+    <script type="module" src="js/ai.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
-</html>
+</html>html>
+</span></h1>
+</body></t
